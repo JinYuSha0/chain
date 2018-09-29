@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>myJquery</title>
+</head>
+<body>
+<div id="app"></div>
+<script src="chain.js"></script>
+<script>
+    var domMethods = {
+        find: function (mark) {
+            this.el = document.querySelector(mark)
+        },
+        create: function (label, innerText) {
+            var dom = document.createElement(label || 'div')
+            dom.innerText = innerText || ''
+            this.el.appendChild(dom)
+        },
+        remove: function () {
+            if (this.isDomObject(this.el)) {
+                this.el.parentNode.removeChild(this.el)
+            }
+        },
+        print: function (content) {
+            console.log(this.isNil(content) ? this : content)
+        }
+    }
+
+    var utils = {
+        isDomObject: function (obj) {
+            return !!(obj && typeof window !== 'undefined' && (obj === window || obj.nodeType))
+        },
+        isPlainObject: function (obj) {
+            if (typeof obj !== 'object' || obj === null) return false
+            let proto = obj
+            while (Object.getPrototypeOf(proto) !== null) {
+                proto = Object.getPrototypeOf(proto)
+            }
+            return Object.getPrototypeOf(obj) === proto
+        },
+        isNil: function (value) {
+            return value == null
+        }
+    }
+
+    var $ = chain(function (mark) {
+        if (arguments.length > 0) {
+            var obj = new $
+            if (mark) {
+                obj.find(mark)
+            }
+            return obj
+        }
+    }, [domMethods, utils], true, true)
+
+    $('#app').create('h1', 'HELLO').create('h2', 'PROTOTYPE')
+
+    $.print($('#app')).print($.isDomObject({})).print($.isPlainObject({}))
+</script>
+</body>
+</html>
