@@ -8,55 +8,85 @@
 <div id="app"></div>
 <script src="chain.js"></script>
 <script>
-    var domMethods = {
-        find: function (mark) {
-            this.el = document.querySelector(mark)
-        },
-        create: function (label, innerText) {
-            var dom = document.createElement(label || 'div')
-            dom.innerText = innerText || ''
-            this.el.appendChild(dom)
-        },
-        remove: function () {
-            if (this.isDomObject(this.el)) {
-                this.el.parentNode.removeChild(this.el)
-            }
-        },
-        print: function (content) {
-            console.log(this.isNil(content) ? this : content)
+  (async function () {
+    const domMethods = {
+      find: function (mark) {
+        this.el = document.querySelector(mark)
+      },
+      create: function (label, innerText) {
+        var dom = document.createElement(label || 'div')
+        dom.innerText = innerText || ''
+        this.el.appendChild(dom)
+      },
+      remove: function () {
+        if (this.isDomObject(this.el)) {
+          this.el.parentNode.removeChild(this.el)
         }
+      },
+      print: function (content) {
+        console.log(this.isNil(content) ? this : content)
+      }
     }
 
-    var utils = {
-        isDomObject: function (obj) {
-            return !!(obj && typeof window !== 'undefined' && (obj === window || obj.nodeType))
-        },
-        isPlainObject: function (obj) {
-            if (typeof obj !== 'object' || obj === null) return false
-            let proto = obj
-            while (Object.getPrototypeOf(proto) !== null) {
-                proto = Object.getPrototypeOf(proto)
-            }
-            return Object.getPrototypeOf(obj) === proto
-        },
-        isNil: function (value) {
-            return value == null
+    const utils = {
+      isDomObject: function (obj) {
+        return !!(obj && typeof window !== 'undefined' && (obj === window || obj.nodeType))
+      },
+      isPlainObject: function (obj) {
+        if (typeof obj !== 'object' || obj === null) return false
+        let proto = obj
+        while (Object.getPrototypeOf(proto) !== null) {
+          proto = Object.getPrototypeOf(proto)
         }
+        return Object.getPrototypeOf(obj) === proto
+      },
+      isNil: function (value) {
+        return value == null
+      },
+      fetchAndInstantiateWasm: function (url, importObj = {}) {
+        return fetch(url)
+          .then(res => {
+            if (res.ok) {
+              return res.arrayBuffer()
+            }
+            throw new Error(`Unable to fetch Web Assembly file ${url}.`)
+          })
+          .then(bytes => WebAssembly.compile(bytes))
+          .then(module => {
+            return WebAssembly.instantiate(module, importObj)
+          })
+          .then(instance => instance.exports)
+      }
     }
 
-    var $ = chain(function (mark) {
-        if (arguments.length > 0) {
-            var obj = new $
-            if (mark) {
-                obj.find(mark)
-            }
-            return obj
+    const module = await utils.fetchAndInstantiateWasm('./debug.wasm', {
+      env: {
+        memory: new WebAssembly.Memory({initial: 256, maximum: 256}),
+        memoryBase: 0,
+        tableBase: 0,
+        table: new WebAssembly.Table({initial: 10, element: 'anyfunc'}),
+        abort: (e) => console.log(e),
+        _consoleLog: num => console.log(num),
+      },
+    })
+
+    const $ = chain(function (mark) {
+      if (arguments.length > 0) {
+        var obj = new $
+        if (mark) {
+          obj.find(mark)
         }
-    }, [domMethods, utils], true, true)
+        return obj
+      }
+    }, [domMethods, utils, module], true, true)
 
     $('#app').create('h1', 'HELLO').create('h2', 'PROTOTYPE')
 
-    $.print($('#app')).print($.isDomObject({})).print($.isPlainObject({}))
+    $.print($('#app'))
+      .print($.isDomObject({}))
+      .print($.isPlainObject({}))
+      .print($._sumOfSquare(2, 3))
+  })()
 </script>
 </body>
 </html>
